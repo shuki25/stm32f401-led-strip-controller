@@ -90,7 +90,7 @@ void fx_get_name(char *name, uint8_t effect_id, uint8_t max_len)
     if (effect_id >= NBR_FX) {
         return;
     }
-    strncpy(name, fx_name_list[effect_id], strlen(fx_name_list[effect_id]));
+    strncpy(name, fx_name_list[effect_id], len);
     name[len] = '\0';
 }
 
