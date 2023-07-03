@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33815.320
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "stm32f401-led-strip-controller", "stm32f401-led-strip-controller.vgdbcmake", "{7A129624-E95E-4F45-B21E-0699169BE3C9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|VisualGDB = Debug|VisualGDB
+		MinSizeRel|VisualGDB = MinSizeRel|VisualGDB
+		Release|VisualGDB = Release|VisualGDB
+		RelWithDebInfo|VisualGDB = RelWithDebInfo|VisualGDB
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.Debug|VisualGDB.ActiveCfg = Debug|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.Debug|VisualGDB.Build.0 = Debug|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.MinSizeRel|VisualGDB.ActiveCfg = MinSizeRel|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.MinSizeRel|VisualGDB.Build.0 = MinSizeRel|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.Release|VisualGDB.ActiveCfg = Release|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.Release|VisualGDB.Build.0 = Release|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.RelWithDebInfo|VisualGDB.ActiveCfg = RelWithDebInfo|VisualGDB
+		{7A129624-E95E-4F45-B21E-0699169BE3C9}.RelWithDebInfo|VisualGDB.Build.0 = RelWithDebInfo|VisualGDB
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
