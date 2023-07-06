@@ -8,18 +8,21 @@
  */
 
 #include <string.h>
-#include "led_strip_effect.h"
 #include "palettes.h"
+#include "led_strip_effect.h"
+#include "color_patterns.h"
+#include "gradients.h"
 #include "misc.h"
-
 
 void (*fx_list[NBR_FX])(led_strip_effect_t *);
 void(*fx_list[NBR_FX])(led_strip_effect_t *) = {
     fx_solid,
-    fx_police_wagtag
+    fx_police_wagtag,
+    fx_rainbow,
+    fx_gradient
 };
 
-char *fx_name_list[NBR_FX] = {"Solid", "Police"};
+char *fx_name_list[NBR_FX] = {"Solid", "Police", "Rainbow", "Gradient"};
 
 led_strip_effect_error_t led_strip_effect_init(led_strip_effect_t *effect, led_strip_t *led, uint8_t num_leds)
 {
@@ -68,6 +71,8 @@ void fx_solid(led_strip_effect_t *effect)
     if (!effect->initialized) {
         effect->is_loop = 0;
         effect->initialized = 1;
+        effect->has_gradient = 0;
+        effect->gradient_id = 0;
     }
     else if (effect->need_update) {
         effect->need_update = 0;
@@ -75,8 +80,9 @@ void fx_solid(led_strip_effect_t *effect)
     else {
         return;
     }
-    
-    led_strip_fill(effect->led, RED(effect->solid_color), GREEN(effect->solid_color), BLUE(effect->solid_color));
+    for (uint8_t i = 0; i < effect->num_leds; i++) {
+        led_strip_set_LED(effect->led, i, RED(effect->solid_color), GREEN(effect->solid_color), BLUE(effect->solid_color));
+    }
     led_strip_set_brightness(effect->led, effect->brightness);
     led_strip_WS2812_send(effect->led);
 }
@@ -94,6 +100,19 @@ void fx_get_name(char *name, uint8_t effect_id, uint8_t max_len)
     name[len] = '\0';
 }
 
+void fx_get_gradient_name(char *name, uint8_t gradient_id, uint8_t max_len)
+{
+    uint8_t len = strlen(gradient_palette_name_list[gradient_id]);
+    if (len > max_len) {
+        len = max_len;
+    }
+    if (gradient_id >= gradient_palettes_list_size) {
+        strcpy(name, "Unknown");
+        return;
+    }
+    strncpy(name, gradient_palette_name_list[gradient_id], len);
+    name[len] = '\0';
+}
 
 void fx_police_wagtag(led_strip_effect_t *effect)
 {
@@ -102,9 +121,8 @@ void fx_police_wagtag(led_strip_effect_t *effect)
         effect->initialized = 1;
         effect->loop_count = 1;
         effect->delay_time = 250;
-    }
-    else if (effect->need_update) {
-        effect->need_update = 0;
+        effect->has_gradient = 0;
+        effect->gradient_id = 0;
     }
     
     uint8_t half = effect->num_leds / 2;
@@ -124,4 +142,54 @@ void fx_police_wagtag(led_strip_effect_t *effect)
     led_strip_set_brightness(effect->led, effect->brightness);
     led_strip_WS2812_send(effect->led);
     effect->loop_count = !effect->loop_count;
+    effect->need_update = 0;
+}
+
+void fx_rainbow(led_strip_effect_t *effect)
+{
+    if (!effect->initialized) {
+        effect->is_loop = 1;
+        effect->initialized = 1;
+        effect->loop_count = 0;
+        effect->delay_time = 200;
+        effect->has_gradient = 0;
+        effect->gradient_id = 0;
+        fill_pattern(effect->primary, pattern_rainbow, effect->num_leds, sizeof(pattern_rainbow) / sizeof(uint32_t));
+        for (uint8_t i = 0; i < effect->num_leds; i++) {
+            led_strip_set_LED(effect->led, i, RED(effect->primary[i]), GREEN(effect->primary[i]), BLUE(effect->primary[i]));
+        }
+    }
+    else if (effect->need_update) {
+        effect->need_update = 0;
+    }
+    led_strip_rotate(effect->led, LED_STRIP_ROTATE_LEFT);
+    led_strip_set_brightness(effect->led, effect->brightness);
+    led_strip_WS2812_send(effect->led);
+    effect->need_update = 0;
+}
+
+void fx_gradient(led_strip_effect_t * effect) {
+    if (!effect->initialized) {
+        effect->is_loop = 1;
+        effect->initialized = 1;
+        effect->loop_count = 0;
+        effect->delay_time = 200;
+        effect->has_gradient = 1;
+        effect->gradient_id = 0;
+        fill_gradient(effect->primary, gradient_palettes_list[0], effect->num_leds);
+        for (uint8_t i = 0; i < effect->num_leds; i++) {
+            led_strip_set_LED(effect->led, i, RED(effect->primary[i]), GREEN(effect->primary[i]), BLUE(effect->primary[i]));
+        }
+    }
+    else if (effect->need_update) {
+        fill_gradient(effect->primary, gradient_palettes_list[effect->gradient_id], effect->num_leds);
+        for (uint8_t i = 0; i < effect->num_leds; i++) {
+            led_strip_set_LED(effect->led, i, RED(effect->primary[i]), GREEN(effect->primary[i]), BLUE(effect->primary[i]));
+        }
+        effect->need_update = 0;
+    }
+    led_strip_rotate(effect->led, LED_STRIP_ROTATE_LEFT);
+    led_strip_set_brightness(effect->led, effect->brightness);
+    led_strip_WS2812_send(effect->led);
+    effect->need_update = 0;
 }

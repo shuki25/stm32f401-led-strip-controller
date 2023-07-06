@@ -18,6 +18,8 @@
 #define NUM_SACRIFICIAL_LED 1
 #define PI 3.14159265358979323846
 
+extern uint8_t gamma8[];
+
 const uint8_t color_groups[7][3] = {
     { 255, 0, 0 },
     // red
@@ -46,7 +48,7 @@ const uint8_t color_groups[7][3] = {
  * @return led_strip_error_t Returns LED_STRIP_OK if successful, LED_STRIP_ERROR if not.
  **/
 
-led_strip_error_t led_strip_init(led_strip_t *led_obj, TIM_HandleTypeDef *htim, const uint32_t channel, const uint8_t counter_period, const uint8_t num_leds, const uint8_t sacrificial_led_flag) {
+led_strip_error_t led_strip_init(led_strip_t *led_obj, TIM_HandleTypeDef *htim, const uint32_t channel, const uint8_t counter_period, const uint8_t max_num_leds, const uint8_t sacrificial_led_flag) {
     
     uint8_t offset;
     if (sacrificial_led_flag > 1)
@@ -68,19 +70,20 @@ led_strip_error_t led_strip_init(led_strip_t *led_obj, TIM_HandleTypeDef *htim, 
     led_obj->secondary = NULL;
     led_obj->working = NULL;
  
-    if (!num_leds)
+    if (!max_num_leds)
     {
         return LED_STRIP_ERROR;
     }
-    led_obj->num_leds = num_leds > NUM_LEDS ? NUM_LEDS : num_leds;
+    led_obj->max_num_leds = max_num_leds > NUM_LEDS ? NUM_LEDS : max_num_leds;
+    led_obj->num_leds = led_obj->max_num_leds;
     led_obj->data_sent_flag = 0;
-    led_obj->primary = (uint8_t **)malloc((num_leds + offset) * sizeof(uint8_t *));
-    led_obj->secondary = (uint8_t **)malloc((num_leds + offset) * sizeof(uint8_t *));
-    led_obj->working = (uint8_t **)malloc((num_leds + offset) * sizeof(uint8_t *));
+    led_obj->primary = (uint8_t **)malloc((max_num_leds + offset) * sizeof(uint8_t *));
+    led_obj->secondary = (uint8_t **)malloc((max_num_leds + offset) * sizeof(uint8_t *));
+    led_obj->working = (uint8_t **)malloc((max_num_leds + offset) * sizeof(uint8_t *));
     if (led_obj->primary == NULL || led_obj->secondary == NULL || led_obj->working == NULL) {
         return LED_STRIP_MALLOC_FAILED;
     }
-    for (int i = 0; i < num_leds + offset; i++) {
+    for (int i = 0; i < max_num_leds + offset; i++) {
         led_obj->primary[i] = (uint8_t *)malloc(4 * sizeof(uint8_t));
         led_obj->secondary[i] = (uint8_t *)malloc(4 * sizeof(uint8_t));
         led_obj->working[i] = (uint8_t *)malloc(4 * sizeof(uint8_t));
@@ -88,7 +91,7 @@ led_strip_error_t led_strip_init(led_strip_t *led_obj, TIM_HandleTypeDef *htim, 
             return LED_STRIP_MALLOC_FAILED;
         }
     }
-    for (int i = 0; i < (num_leds + offset); i++) {
+    for (int i = 0; i < (max_num_leds + offset); i++) {
         led_obj->primary[i][0] = i;
         led_obj->primary[i][1] = 0;
         led_obj->primary[i][2] = 0;
@@ -102,17 +105,17 @@ led_strip_error_t led_strip_init(led_strip_t *led_obj, TIM_HandleTypeDef *htim, 
         led_obj->working[i][2] = 0;
         led_obj->working[i][3] = 0;
     }
-    led_obj->mod = (uint8_t **)malloc((num_leds + offset) * sizeof(uint8_t *));
+    led_obj->mod = (uint8_t **)malloc((max_num_leds + offset) * sizeof(uint8_t *));
     if (led_obj->mod == NULL) {
         return LED_STRIP_MALLOC_FAILED;
     }
-    for (int i = 0; i < (num_leds + offset); i++) {
+    for (int i = 0; i < (max_num_leds + offset); i++) {
         led_obj->mod[i] = (uint8_t *)malloc(4 * sizeof(uint8_t));
         if (led_obj->mod[i] == NULL) {
             return LED_STRIP_MALLOC_FAILED;
         }
     }
-    led_obj->pwm_data = (uint16_t *)malloc(((num_leds + offset) * 24) + 50);
+    led_obj->pwm_data = (uint16_t *)malloc(((max_num_leds + offset) * 24) + 50);
     if (led_obj->pwm_data == NULL) {
         return LED_STRIP_MALLOC_FAILED;
     }
@@ -157,9 +160,55 @@ void led_strip_set_brightness(led_strip_t *led_obj, uint8_t brightness) {
 #endif
 }
 
+/* Rotate led to right or left, last led will move to first led */
+void led_strip_rotate(led_strip_t *led_obj, uint8_t dir) {
+    uint8_t offset = (led_obj->sacrificial_led_flag * NUM_SACRIFICIAL_LED);
+    uint8_t num_leds = led_obj->num_leds + offset;
+    uint8_t temp[4];
+    if (dir == LED_STRIP_ROTATE_LEFT) {
+        temp[0] = led_obj->working[0][0];
+        temp[1] = led_obj->working[0][1];
+        temp[2] = led_obj->working[0][2];
+        temp[3] = led_obj->working[0][3];
+        
+        for (int i = 0; i < num_leds ; i++) {
+            if (i < num_leds - 1) {
+                led_obj->working[i][0] = led_obj->working[i+1][0];
+                led_obj->working[i][1] = led_obj->working[i+1][1];
+                led_obj->working[i][2] = led_obj->working[i+1][2];
+                led_obj->working[i][3] = led_obj->working[i+1][3];
+            } else {
+                led_obj->working[i][0] = temp[0];
+                led_obj->working[i][1] = temp[1];
+                led_obj->working[i][2] = temp[2];
+                led_obj->working[i][3] = temp[3];
+            }
+        }
+    } else if (dir == LED_STRIP_ROTATE_RIGHT) {
+        temp[0] = led_obj->working[num_leds - 1][0];
+        temp[1] = led_obj->working[num_leds - 1][1];
+        temp[2] = led_obj->working[num_leds - 1][2];
+        temp[3] = led_obj->working[num_leds - 1][3];
+        
+        for (int i = num_leds - 1; i >= 0; i--) {
+            if (i > 0) {
+                led_obj->working[i][0] = led_obj->working[i-1][0];
+                led_obj->working[i][1] = led_obj->working[i-1][1];
+                led_obj->working[i][2] = led_obj->working[i-1][2];
+                led_obj->working[i][3] = led_obj->working[i-1][3];
+            } else {
+                led_obj->working[i][0] = temp[0];
+                led_obj->working[i][1] = temp[1];
+                led_obj->working[i][2] = temp[2];
+                led_obj->working[i][3] = temp[3];
+            }
+        }
+    }
+}
+
 void led_strip_clear(led_strip_t *led_obj) {
     uint8_t offset = (led_obj->sacrificial_led_flag * NUM_SACRIFICIAL_LED);
-    for (int i = 0; i < led_obj->num_leds + led_obj->sacrificial_led_flag; i++) {
+    for (int i = 0; i < led_obj->max_num_leds + led_obj->sacrificial_led_flag; i++) {
         led_strip_set_LED(led_obj, offset + i, 0, 0, 0);
     }
 }

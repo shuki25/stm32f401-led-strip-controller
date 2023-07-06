@@ -14,7 +14,7 @@
 #define RED(x) ((x & 0x00ff00) >> 8)
 #define BLUE(x) (x & 0x0000ff)
 
-#define NBR_FX 2
+#define NBR_FX 4
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +31,13 @@ extern "C" {
         LED_STRIP_EFFECT_MALLOC_FAILED
     } led_strip_effect_error_t;
     
+    typedef enum {
+        FX_NONE,
+        FX_SOLID,
+        FX_ROTATE_LEFT,
+        FX_ROTATE_RIGHT
+    } led_strip_fx_t;
+    
     typedef struct
     {
         uint8_t effect_id;
@@ -43,8 +50,11 @@ extern "C" {
         uint8_t duty_cycle;
         uint8_t brightness;
         uint8_t intensity;
-        uint8_t delay_time;
+        uint16_t delay_time;
         uint8_t loop_count;
+        uint8_t gradient_id;
+        uint8_t fx_id;
+        led_strip_fx_t fx;
         union {
             struct
             {
@@ -53,6 +63,7 @@ extern "C" {
                 uint8_t is_loop : 1;
                 uint8_t is_done : 1;
                 uint8_t need_update : 1;
+                uint8_t has_gradient : 1;
             };
             uint8_t flags;
         };
@@ -60,9 +71,12 @@ extern "C" {
     
     led_strip_effect_error_t led_strip_effect_init(led_strip_effect_t *effect, led_strip_t *led, uint8_t num_leds);
     void fx_get_name(char *name, uint8_t effect_id, uint8_t max_len);
+    void fx_get_gradient_name(char *name, uint8_t gradient_id, uint8_t max_len);
     void fx_update(led_strip_effect_t *effect);
     void fx_solid(led_strip_effect_t *effect);
     void fx_police_wagtag(led_strip_effect_t *effect);
+    void fx_rainbow(led_strip_effect_t *effect);
+    void fx_gradient(led_strip_effect_t * effect);
 
 #ifdef __cplusplus
 }

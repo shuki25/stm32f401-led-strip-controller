@@ -11,6 +11,9 @@
 #ifndef LED_STRIP_H_
 #define LED_STRIP_H_
 
+#define LED_STRIP_ROTATE_LEFT  0
+#define LED_STRIP_ROTATE_RIGHT 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +36,7 @@ extern "C" {
         uint8_t duty_high;
         uint8_t duty_low;
         uint8_t max_brightness;
+        uint8_t max_num_leds;
         uint8_t num_leds;
         uint8_t data_sent_flag;
         uint8_t sacrificial_led_flag;
@@ -48,6 +52,7 @@ extern "C" {
     void led_strip_set_secondary_LED(led_strip_t *led_obj, uint8_t LEDnum, uint8_t Red, uint8_t Green, uint8_t Blue);
     void led_strip_set_LED(led_strip_t *led_obj, uint8_t LEDnum, uint8_t Red, uint8_t Green, uint8_t Blue);
     void led_strip_set_brightness(led_strip_t *led_obj, uint8_t brightness);
+    void led_strip_rotate(led_strip_t *led_obj, uint8_t direction);
     void led_strip_clear(led_strip_t *led_obj);
     void led_strip_fill(led_strip_t *led_obj, uint8_t Red, uint8_t Green, uint8_t Blue);
     void led_strip_fill_range(led_strip_t *led_obj, uint8_t Red, uint8_t Green, uint8_t Blue, uint8_t start, uint8_t end);

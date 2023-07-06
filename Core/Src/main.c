@@ -103,12 +103,15 @@ const osMutexAttr_t stripShowMutex_attributes = {
 };
 /* USER CODE BEGIN PV */
 
+// External Variables
+extern uint8_t gradient_palettes_list_size;
+
 // data buffer
 
 char lcd_buffer[64];
 
 // LED Strip
-uint8_t current_num_leds = 32;
+uint8_t current_num_leds = 48;
 led_strip_t led_strip;
 led_strip_effect_t led_fx;
 uint8_t led_fx_ready = 0;
@@ -784,6 +787,9 @@ void StartDefaultTask(void *argument)
     uint32_t remote_cmd = 0;
     uint8_t need_update = 0;
     uint8_t power_update = 0;
+    uint8_t prev_gradient = 0;
+    uint8_t memory_gradient = 0;
+    
     struct {
         uint8_t red;
         uint8_t green;
@@ -808,6 +814,7 @@ void StartDefaultTask(void *argument)
     }
     
     led_strip.data_sent_flag = 1;
+    led_strip.num_leds = current_num_leds;
     led_strip.sacrificial_led_flag = sacrifical_led_flag;
     
     // Splash screen
@@ -866,30 +873,37 @@ void StartDefaultTask(void *argument)
                 break;
             case IR_UPG:
                 current_color.green++;
-                if (current_color.green > 128) current_color.green = 128;               
+                if (current_color.green > 128) current_color.green = 128;
                 need_update = 1;
                 break;
             case IR_UPB:
-                current_color.blue++;
-                if (current_color.blue > 128) current_color.blue = 128;
+                if (led_fx.has_gradient) { 
+                    memory_gradient++;
+                    if (memory_gradient > gradient_palettes_list_size) memory_gradient = 0;
+                } else {
+                    current_color.blue++;
+                    if (current_color.blue > 128) current_color.blue = 128;
+                }
                 need_update = 1;
                 break;
             case IR_DOWNR:
                 current_color.red--;
-                if (current_color.red > 128) current_color.red = 128;
-                else if (current_color.red < 0) current_color.red = 0;
+                if (current_color.red < 0) current_color.red = 0;
                 need_update = 1;
                 break;
             case IR_DOWNG:
                 current_color.green--;
-                if (current_color.green > 128) current_color.green = 128;
-                else if (current_color.green < 0) current_color.green = 0;
+                if (current_color.green < 0) current_color.green = 0;
                 need_update = 1;
                 break;
             case IR_DOWNB:
-                current_color.blue--;
-                if (current_color.blue > 128) current_color.blue = 128;
-                else if (current_color.blue < 0) current_color.blue = 0;
+                if (led_fx.has_gradient) { 
+                    memory_gradient--;
+                    if (memory_gradient == 255) memory_gradient = gradient_palettes_list_size;
+                } else {
+                    current_color.blue--;
+                    if (current_color.blue < 0) current_color.blue = 0;
+                }                
                 need_update = 1;
                 break;
             case IR_PLAY:
@@ -897,6 +911,18 @@ void StartDefaultTask(void *argument)
                 current_fx++;
                 if (current_fx >= NBR_FX) current_fx = 0;
                 has_fx_changed = 1;
+                break;
+            case IR_QUICK:
+                if (led_fx.is_loop) {
+                    led_fx.delay_time -= 20;
+                    if (led_fx.delay_time < 50) led_fx.delay_time = 50;
+                }
+                break;
+            case IR_SLOW:
+                if (led_fx.is_loop) {
+                    led_fx.delay_time += 20;
+                    if (led_fx.delay_time > 1000) led_fx.delay_time = 1000;
+                }
                 break;
             case IR_PWR:
                 power_update = 1;
@@ -924,7 +950,22 @@ void StartDefaultTask(void *argument)
             led_strip_set_brightness(&led_strip, current_brightness);
             led_strip_WS2812_send(&led_strip);
             need_update = 1;
-        } 
+        }
+        if (led_fx.has_gradient && led_fx.gradient_id != prev_gradient) {
+            led_fx.gradient_id = memory_gradient;
+            fx_get_gradient_name(fx_name_buffer, led_fx.gradient_id, 18);
+            ssd1306_SetCursor(0, 20);
+            ssd1306_ClearLine(20, Font_7x10);
+            ssd1306_SetCursor(0, 20);
+            ssd1306_WriteStringCenteredHorizonal(fx_name_buffer, Font_7x10, White);
+            ssd1306_UpdateScreen();
+            prev_gradient = led_fx.gradient_id;
+        } else if (!led_fx.has_gradient && led_fx.gradient_id != prev_gradient && !led_fx.need_update) {
+            ssd1306_SetCursor(0, 20);
+            ssd1306_ClearLine(20, Font_7x10);
+            ssd1306_UpdateScreen();
+            prev_gradient = led_fx.gradient_id;
+        }
         if (need_update || has_fx_changed) {
             need_update = 0;            
             os_status = osMutexAcquire(stripShowMutexHandle, 2000);
@@ -933,7 +974,9 @@ void StartDefaultTask(void *argument)
             }
             else if (os_status == osOK) {
                 if (has_fx_changed) {
-                    has_fx_changed = 0;
+                    has_fx_changed = 0;                   
+                    prev_gradient = 0xFF;
+                    led_fx.gradient_id = memory_gradient;
                     fx_get_name(fx_name_buffer, current_fx, 12);
                     ssd1306_SetCursor(0, 0);
                     ssd1306_ClearLine(0, Font_11x18);
@@ -942,10 +985,12 @@ void StartDefaultTask(void *argument)
                     ssd1306_UpdateScreen();
                     led_fx.effect_id = current_fx;
                     led_fx.initialized = 0;
+                    led_fx.need_update = 1;
                 }
                 else {
                     led_fx.solid_color = ((uint32_t)current_color.green << 16) | ((uint32_t)current_color.red << 8) | (uint32_t)current_color.blue;
                     led_fx.brightness = current_brightness;
+                    led_fx.gradient_id = memory_gradient;
                     led_fx.need_update = 1;
                 }
             }
@@ -994,12 +1039,12 @@ void StartStripShowTask(void *argument)
     /* Infinite loop */
     for (;;) {
         if (power_state) {
+            HAL_GPIO_TogglePin(LED_STATUS_GPIO_Port, LED_STATUS_Pin);
             if (!led_fx.initialized || led_fx.need_update || led_fx.is_loop) {
                 os_status = osMutexAcquire(stripShowMutexHandle, 2000);
                 fx_update(&led_fx);
                 osMutexRelease(stripShowMutexHandle);
             }
-            HAL_GPIO_TogglePin(LED_STATUS_GPIO_Port, LED_STATUS_Pin);
             if (led_fx.is_loop) {
                 osDelay(led_fx.delay_time);
             }
