@@ -111,7 +111,7 @@ extern uint8_t gradient_palettes_list_size;
 char lcd_buffer[64];
 
 // LED Strip
-uint8_t current_num_leds = 48;
+uint8_t current_num_leds = 64;
 led_strip_t led_strip;
 led_strip_effect_t led_fx;
 uint8_t led_fx_ready = 0;
